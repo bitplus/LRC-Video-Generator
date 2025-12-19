@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LRC Video Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar: Files & Project -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h1>🎵 LRC Video Gen</h1>
+            </div>
+            
+            <div class="section">
+                <h2>1. 文件选择</h2>
+                <div class="file-input-group">
+                    <label>音频文件 (.mp3, .wav)</label>
+                    <div class="input-row">
+                        <input type="text" id="audio-path" readonly placeholder="未选择文件">
+                        <button class="btn-icon" onclick="document.getElementById('audio-upload').click()">📂</button>
+                    </div>
+                    <input type="file" id="audio-upload" accept=".mp3,.wav,.flac,.m4a" hidden>
+                </div>
+
+                <div class="file-input-group">
+                    <label>封面图片 (.png, .jpg)</label>
+                    <div class="input-row">
+                        <input type="text" id="cover-path" readonly placeholder="未选择文件">
+                        <button class="btn-icon" onclick="document.getElementById('cover-upload').click()">📂</button>
+                    </div>
+                    <input type="file" id="cover-upload" accept=".jpg,.jpeg,.png,.webp" hidden>
+                </div>
+
+                <div class="file-input-group">
+                    <label>LRC 歌词 (.lrc)</label>
+                    <div class="input-row">
+                        <input type="text" id="lrc-path" readonly placeholder="未选择文件">
+                        <button class="btn-icon" onclick="document.getElementById('lrc-upload').click()">📂</button>
+                    </div>
+                    <input type="file" id="lrc-upload" accept=".lrc" hidden>
+                </div>
+
+                <div class="file-input-group">
+                    <label>背景图片 (可选)</label>
+                    <div class="input-row">
+                        <input type="text" id="bg-path" readonly placeholder="默认使用封面">
+                        <button class="btn-icon" onclick="document.getElementById('bg-upload').click()">📂</button>
+                        <button class="btn-icon btn-clear" onclick="clearBg()">✕</button>
+                    </div>
+                    <input type="file" id="bg-upload" accept=".jpg,.jpeg,.png,.webp" hidden>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>4. 高级设置</h2>
+                <div class="form-group">
+                    <label>FFmpeg 路径</label>
+                    <input type="text" id="ffmpeg-path" value="ffmpeg">
+                </div>
+                <div class="form-group">
+                    <label>硬件加速</label>
+                    <select id="hw-accel"></select>
+                </div>
+            </div>
+            
+            <div class="section spacer"></div>
+            
+            <div class="project-actions">
+                <button class="btn-secondary" onclick="saveProject()">💾 保存工程</button>
+                <button class="btn-secondary" onclick="loadProject()">📂 加载工程</button>
+                <input type="file" id="project-upload" accept=".json,.kproj" hidden>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Preview Section -->
+            <section class="preview-section">
+                <div class="preview-header">
+                    <h2>3. 实时预览</h2>
+                    <div class="preview-controls">
+                        <span id="preview-time-display">0.00s</span>
+                        <input type="range" id="preview-slider" min="0" max="100" value="0" step="0.01">
+                        <button class="btn-primary" onclick="generatePreview()">👁️ 生成预览</button>
+                    </div>
+                </div>
+                <div class="preview-container" id="preview-container">
+                    <div class="placeholder-text">加载音频并拖动滑块以生成预览</div>
+                    <img id="preview-img" src="" alt="预览图">
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section class="settings-section">
+                <div class="section-header">
+                    <h2>2. 样式与动画</h2>
+                    <button class="btn-small" onclick="extractColors()">🎨 从封面提取颜色</button>
+                </div>
+                
+                <div class="settings-grid">
+                    <!-- Column 1: Animations -->
+                    <div class="settings-col">
+                        <div class="form-group">
+                            <label>背景动画</label>
+                            <select id="bg-anim"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>歌词动画</label>
+                            <select id="text-anim"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>封面动画</label>
+                            <select id="cover-anim"></select>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Fonts -->
+                    <div class="settings-col">
+                        <div class="form-group">
+                            <label>主歌词字体</label>
+                            <select id="font-primary"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>次歌词字体</label>
+                            <select id="font-secondary"></select>
+                        </div>
+                        <div class="row">
+                            <div class="form-group half">
+                                <label>主字号</label>
+                                <input type="number" id="font-size-primary" value="48">
+                            </div>
+                            <div class="form-group half">
+                                <label>次字号</label>
+                                <input type="number" id="font-size-secondary" value="42">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 3: Colors -->
+                    <div class="settings-col">
+                        <div class="form-group">
+                            <label>主歌词颜色</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="color-primary" value="#FFFFFF">
+                                <input type="text" id="color-primary-text" value="#FFFFFF" readonly>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>次歌词颜色</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="color-secondary" value="#DDDDDD">
+                                <input type="text" id="color-secondary-text" value="#DDDDDD" readonly>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>描边颜色 & 宽度</label>
+                            <div class="row">
+                                <div class="color-input-wrapper grow">
+                                    <input type="color" id="outline-color" value="#000000">
+                                    <input type="text" id="outline-color-text" value="#000000" readonly>
+                                </div>
+                                <input type="number" id="outline-width" value="3" style="width: 60px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Generation Section -->
+            <section class="generation-section">
+                <div class="gen-controls">
+                    <button class="btn-lg btn-gradient" onclick="startGeneration()">🚀 开始生成视频</button>
+                    <div class="progress-wrapper">
+                        <div class="progress-info">
+                            <span id="progress-status">准备就绪</span>
+                            <span id="progress-percent">0%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="progress-bar"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="logs-container">
+                    <div class="logs-header" onclick="toggleLogs()">
+                        <span>📜 日志输出</span>
+                        <span id="log-toggle-icon">▼</span>
+                    </div>
+                    <div class="logs-content" id="logs-box">
+                        <!-- Logs will appear here -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- Modal for Result -->
+    <div id="result-modal" class="modal">
+        <div class="modal-content">
+            <h3>🎉 生成完成!</h3>
+            <p>视频已成功生成。</p>
+            <div class="modal-actions">
+                <a id="download-link" href="#" class="btn-primary" download>⬇️ 下载视频</a>
+                <button class="btn-secondary" onclick="closeModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

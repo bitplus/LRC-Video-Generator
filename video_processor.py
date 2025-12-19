@@ -139,7 +139,10 @@ def _build_filter_complex(params: VideoGenParams, lrc_data: List, is_preview: bo
             outline_width=params.outline_width
         )
 
-    final_chain = f"[final_bg]{text_filter_str},format=yuv420p"
+    # [修复] 只有当 text_filter_str 不为空时才添加逗号
+    filter_separator = "," if text_filter_str else ""
+    final_chain = f"[final_bg]{text_filter_str}{filter_separator}format=yuv420p"
+    
     if is_preview:
         filters.append(f"{final_chain},select='eq(n\\,{int(params.preview_time * FPS)})'[v]")
     else:
@@ -192,17 +195,28 @@ def _run_ffmpeg_process(command: List[str], logger, duration: float = 0):
                 current_time = h * 3600 + m * 60 + s + ds / 100
                 percent = int(100 * current_time / duration)
                 logger.progress_update(percent)
+        process.wait()
     else:
         stdout, _ = process.communicate()
         if stdout: logger.status_update(stdout)
 
-    process.wait()
     if process.returncode != 0:
-        raise subprocess.CalledProcessError(process.returncode, command, "FFmpeg 执行失败，请检查日志。")
+        # Capture remaining output if any
+        # If communicate() was used, stdout is closed and consumed. 
+        # If iter() was used, stdout is exhausted/closed.
+        # We can't read from it again safely if it's closed.
+        
+        raise subprocess.CalledProcessError(process.returncode, command, f"FFmpeg 执行失败 (Exit Code: {process.returncode})。请检查日志。")
 
 def _process_media(params: VideoGenParams, is_preview: bool = False):
     """统一处理视频生成和预览的通用函数。"""
     temp_filter_file = None
+    
+    # Define temp directory relative to this file
+    base_dir = Path(__file__).parent.resolve()
+    temp_dir = base_dir / "temp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    
     try:
         logger = params.logger
         ffprobe_path = get_ffmpeg_probe_path(params.ffmpeg_path)
@@ -228,7 +242,9 @@ def _process_media(params: VideoGenParams, is_preview: bool = False):
 
         # 2. 构建滤镜并写入临时文件
         full_filter_complex_string = _build_filter_complex(params, lrc_data, is_preview)
-        with tempfile.NamedTemporaryFile(mode='w', suffix=".txt", delete=False, encoding='utf-8') as f:
+        
+        # Save temp filter file to project temp dir
+        with tempfile.NamedTemporaryFile(mode='w', suffix=".txt", delete=False, encoding='utf-8', dir=temp_dir) as f:
             f.write(full_filter_complex_string)
             temp_filter_file = f.name
             logger.status_update(f"已生成临时滤镜脚本: {temp_filter_file}")
@@ -257,12 +273,13 @@ def _process_media(params: VideoGenParams, is_preview: bool = False):
         logger.status_update("处理成功完成。")
 
     finally:
-        if temp_filter_file and os.path.exists(temp_filter_file):
-            try:
-                os.remove(temp_filter_file)
-                logger.status_update(f"已清理临时文件: {temp_filter_file}")
-            except OSError as e:
-                logger.status_update(f"清理临时文件失败: {e}")
+        # if temp_filter_file and os.path.exists(temp_filter_file):
+        #     try:
+        #         os.remove(temp_filter_file)
+        #         logger.status_update(f"已清理临时文件: {temp_filter_file}")
+        #     except OSError as e:
+        #         logger.status_update(f"清理临时文件失败: {e}")
+        pass
 
 def create_karaoke_video(params: VideoGenParams):
     """创建卡拉OK视频的入口函数。"""

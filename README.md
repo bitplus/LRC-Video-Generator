@@ -1,4 +1,4 @@
-# LRC Video Generator (Web Version)
+# LRC Video Generator (歌词视频生成器 Web Version)
 
 **一款强大而直观的工具，旨在将您的音乐、歌词和专辑封面无缝融合，创造出具有专业水准的卡拉OK或动态歌词视频。**
 

@@ -1,13 +1,14 @@
 # 歌词视频生成器 LRC Video Generator (Web Version)
 
-- **视频示例**:
-  https://www.bilibili.com/video/BV1CxqBBzEjo/
-
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=115749821613828&bvid=BV1CxqBBzEjo&cid=34855453597&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
-
 **一款强大而直观的工具，旨在将您的音乐、歌词和专辑封面无缝融合，创造出具有专业水准的卡拉OK或动态歌词视频。**
 
 基于 **FastAPI** 和 **HTML5/CSS3** 构建，提供现代化的 Web 界面，无需安装复杂的 GUI 库，即可在任何支持现代浏览器的设备上使用。
+
+**视频示例**:
+
+  https://www.bilibili.com/video/BV1CxqBBzEjo/
+
+[![Video Thumbnail](https://github.com/bitplus/LRC-Video-Generator/blob/assets/preview_7676179b-b953-4ef6-a4b9-a22288696b98.png)]([https://www.bilibili.com/video/BV1CxqBBzEjo/])
 
 ## ✨ 核心功能
 

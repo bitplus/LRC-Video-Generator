@@ -121,3 +121,9 @@ LRC-Video-Generator/
 4. **使用风险**: 您明确同意，使用本软件的风险由您自行承担。
 
 **请在使用本软件前，仔细阅读并理解以上声明。继续使用本软件，即表示您已同意并接受本许可协议及免责声明的全部内容。**
+
+## 🙏 致谢 (Acknowledgments)
+
+本项目 Fork 自 [LRC-Video-Generator](https://github.com/SkyDream01/LRC-Video-Generator)，感谢原作者 [SkyDream01](https://github.com/SkyDream01) 实现了项目的核心功能。
+
+本项目在此基础上进行了 Web 化改造、UI 美化及功能增强。感谢原项目提供的灵感与基础代码。

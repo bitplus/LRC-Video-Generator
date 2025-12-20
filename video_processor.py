@@ -92,7 +92,7 @@ def _get_media_duration(ffprobe_path: str, media_path: Path, logger) -> float:
     logger.status_update(f"文件时长: {duration:.2f}s")
     return duration
 
-def _build_filter_complex(params: VideoGenParams, lrc_data: List, is_preview: bool) -> str:
+def _build_filter_complex(params: VideoGenParams, lrc_data: List, is_preview: bool, audio_stream_idx: int) -> str:
     """
     构建完整的FFmpeg filter_complex字符串。
     """
@@ -121,9 +121,23 @@ def _build_filter_complex(params: VideoGenParams, lrc_data: List, is_preview: bo
     else:
         filters.append(f"[{background_stream_idx}:v]{bg_filter_str}[base_bg]")
 
+    # --- Audio Visualization (Spectrum) ---
+    # Create waves from audio stream
+    # s=1920x200: width matches video width, height 200px
+    # mode=line: smooth lines
+    # colors=white@0.3: semi-transparent white
+    filters.append(
+        f"[{audio_stream_idx}:a]showwaves=s={W}x250:mode=line:colors=0xFFFFFF@0.3[waves]"
+    )
+    
+    # Overlay waves on background (at the bottom)
+    filters.append(f"[base_bg][waves]overlay=x=0:y={H}-250[bg_with_waves]")
+
     cover_filter_str = COVER_ANIMATIONS[params.cover_anim](duration=params.duration)
     filters.append(f"[{cover_stream_idx}:v]{cover_filter_str}[fg_cover]")
-    filters.append(f"[base_bg][fg_cover]overlay=x='(W/2.618-w)/2':y='(H-h)/2'[final_bg]")
+    
+    # Overlay cover on [bg_with_waves] instead of [base_bg]
+    filters.append(f"[bg_with_waves][fg_cover]overlay=x='(W/2.618-w)/2':y='(H-h)/2'[final_bg]")
 
     text_filter_str = ""
     if visible_lyrics:
@@ -325,14 +339,17 @@ def _process_media(params: VideoGenParams, is_preview: bool = False):
         if not is_generative_bg and params.background_path != params.cover_path:
             command_inputs.extend(['-i', str(params.background_path)])
 
+        # Ensure audio is always input for filter graph (needed for visualization)
+        audio_input_idx = len(command_inputs) // 2
+        command_inputs.extend(['-i', str(params.audio_path)])
+        
         audio_map_str = ""
         if not is_preview:
-            audio_input_idx = len(command_inputs) // 2
-            command_inputs.extend(['-i', str(params.audio_path)])
+            # For final video, map the audio stream to output
             audio_map_str = f'-map {audio_input_idx}:a'
 
         # 2. 构建滤镜并写入临时文件
-        full_filter_complex_string = _build_filter_complex(params, lrc_data, is_preview)
+        full_filter_complex_string = _build_filter_complex(params, lrc_data, is_preview, audio_input_idx)
         
         # Save temp filter file to project temp dir
         with tempfile.NamedTemporaryFile(mode='w', suffix=".txt", delete=False, encoding='utf-8', dir=temp_dir) as f:

@@ -38,6 +38,8 @@ class VideoGenParams:
     cover_anim: str
     ffmpeg_path: str
     hw_accel: str
+    song_title: str = None
+    song_artist: str = None
     output_path: Path = field(default=None)
     output_image_path: Path = field(default=None)
     preview_time: float = 0.0
@@ -139,9 +141,92 @@ def _build_filter_complex(params: VideoGenParams, lrc_data: List, is_preview: bo
             outline_width=params.outline_width
         )
 
-    # [修复] 只有当 text_filter_str 不为空时才添加逗号
-    filter_separator = "," if text_filter_str else ""
-    final_chain = f"[final_bg]{text_filter_str}{filter_separator}format=yuv420p"
+    # --- Add Info and Timer Overlays ---
+    info_filters = []
+    
+    # 1. Song Info (Title - Artist)
+    if params.song_title or params.song_artist:
+        title = params.song_title or "Unknown Title"
+        artist = params.song_artist or "Unknown Artist"
+        info_text = f"{title} - {artist}"
+        # Basic escaping for drawtext
+        info_text = info_text.replace(":", "\:").replace("'", "\u2019")
+        
+        font_secondary_escaped = str(params.font_secondary).replace('\\', '/').replace(':', '\\:')
+        color_secondary_ffmpeg = to_ffmpeg_color(params.color_secondary)
+        
+        info_filters.append(
+            f"drawtext=fontfile='{font_secondary_escaped}':text='{info_text}':"
+            f"fontsize={int(params.font_size_secondary * 0.6)}:fontcolor={color_secondary_ffmpeg}:"
+            f"x=50:y=h-100:shadowcolor=black@0.5:shadowx=2:shadowy=2"
+        )
+
+    # 2. Timer (00:00 / 05:30)
+    m = int(params.duration // 60)
+    s = int(params.duration % 60)
+    duration_str = f"{m:02d}\:{s:02d}"
+    
+    # Use secondary font for timer too
+    font_secondary_escaped = str(params.font_secondary).replace('\\', '/').replace(':', '\\:')
+    color_secondary_ffmpeg = to_ffmpeg_color(params.color_secondary)
+    
+    # %{pts:gmtime:0:%M\:%S} displays current timestamp in MM:SS format
+    # Note: We need to escape : as \: for drawtext
+    # Fix: %{pts} sometimes fails if timebase is not set correctly or in complex filter graphs.
+    # Using %{pts:gmtime...} usually works, but let's try a safer approach if it fails.
+    # Actually, the error "%{pts} requires at most 3 arguments" usually means the syntax inside gmtime is parsed incorrectly
+    # or the version of ffmpeg handles arguments differently.
+    # Let's simplify the time display logic.
+    
+    # Try using text='%{pts\:gmtime\:0\:%M\:%S}' directly.
+    # If that fails, it might be due to the colon escaping in python string vs ffmpeg string.
+    
+    # We will try a slightly different syntax that is often more robust:
+    # text='%{pts\:gmtime\:0\:%M\\\\\:%S}' (double escaping) might be needed depending on layers.
+    # But usually the issue is the number of arguments to gmtime. 
+    # gmtime takes: offset (optional), format (optional).
+    # If we provide 0 and format, that is 2 arguments.
+    
+    # Let's try removing the second argument (format) to see if it defaults to something usable,
+    # OR ensure we are passing exactly what we expect.
+    # A common issue is the colon in the format string being interpreted as a separator.
+    
+    # Let's use a simpler format first to debug, or fix the escaping.
+    # The error "requires at most 3 arguments" suggests it sees more than 3.
+    # %{pts:gmtime:0:%M:%S} -> args are "gmtime", "0", "%M:%S".
+    # If the colon in %M:%S is split, it sees "%M", "%S" etc.
+    
+    # We need to escape the colons in the time format string so they aren't parsed as argument separators.
+    # In drawtext, arguments are separated by ':', so the format string itself needs escaping.
+    # In the python string, we need to be careful.
+    
+    # Current: text='%{{pts\:gmtime\:0\:%M\:%S}}
+    # Python f-string -> %{pts\:gmtime\:0\:%M\:%S}
+    # FFmpeg sees: pts:gmtime:0:%M\:%S
+    # The backslash might not be enough if it's being eaten by python or shell.
+    
+    # Let's try quadruple escaping for the colons inside the time format.
+    # Or better, use the standard timecode option if possible, but drawtext uses expansion.
+    
+    # Let's try this robust form:
+    info_filters.append(
+        f"drawtext=fontfile='{font_secondary_escaped}':text='%{{pts\:gmtime\:0\:%M\\\\\:%S}} / {duration_str}':"
+        f"fontsize={int(params.font_size_secondary * 0.5)}:fontcolor={color_secondary_ffmpeg}:"
+        f"x=50:y=h-60:shadowcolor=black@0.5:shadowx=2:shadowy=2"
+    )
+    
+    # Combine lyric filters with info filters
+    combined_text_filter = text_filter_str
+    if info_filters:
+        info_filter_str = ",".join(info_filters)
+        if combined_text_filter:
+            combined_text_filter += f",{info_filter_str}"
+        else:
+            combined_text_filter = info_filter_str
+
+    # [修复] 只有当 combined_text_filter 不为空时才添加逗号
+    filter_separator = "," if combined_text_filter else ""
+    final_chain = f"[final_bg]{combined_text_filter}{filter_separator}format=yuv420p"
     
     if is_preview:
         filters.append(f"{final_chain},select='eq(n\\,{int(params.preview_time * FPS)})'[v]")
@@ -224,9 +309,15 @@ def _process_media(params: VideoGenParams, is_preview: bool = False):
 
         logger.status_update("正在解析双语LRC文件...")
         with open(params.lrc_path, 'r', encoding='utf-8') as f:
-            lrc_data, _ = parse_bilingual_lrc_with_metadata(f.read())
+            lrc_data, metadata = parse_bilingual_lrc_with_metadata(f.read())
         if not lrc_data:
             raise ValueError("LRC文件解析失败或内容为空。")
+            
+        # Fill missing title/artist from metadata
+        if not params.song_title and metadata.get('ti'):
+            params.song_title = metadata.get('ti')
+        if not params.song_artist and metadata.get('ar'):
+            params.song_artist = metadata.get('ar')
 
         # [修复] 1. 统一构建所有输入
         command_inputs = ['-i', str(params.cover_path)]

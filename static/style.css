@@ -62,6 +62,12 @@ body {
     letter-spacing: 0.5px;
 }
 
+.section-divider {
+    height: 1px;
+    background-color: var(--border);
+    margin: 15px 0;
+}
+
 .file-input-group, .form-group {
     margin-bottom: 12px;
 }

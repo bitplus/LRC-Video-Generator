@@ -149,6 +149,9 @@ class GenerateRequest(BaseModel):
     ffmpeg_path: str = "ffmpeg"
     hw_accel: str = "无 (软件编码 x264)"
     
+    song_title: Optional[str] = None
+    song_artist: Optional[str] = None
+    
     preview_time: float = 0.0
 
 class ColorExtractRequest(BaseModel):
@@ -195,6 +198,8 @@ def run_preview_task(task_id: str, params_dict: dict):
             cover_anim=params_dict['cover_anim'],
             ffmpeg_path=params_dict['ffmpeg_path'],
             hw_accel=params_dict['hw_accel'],
+            song_title=params_dict.get('song_title'),
+            song_artist=params_dict.get('song_artist'),
             output_image_path=output_image_path,
             preview_time=params_dict['preview_time'],
             logger=WebLogger(task_id)
@@ -259,6 +264,8 @@ def run_video_task(task_id: str, params_dict: dict):
             cover_anim=params_dict['cover_anim'],
             ffmpeg_path=params_dict['ffmpeg_path'],
             hw_accel=params_dict['hw_accel'],
+            song_title=params_dict.get('song_title'),
+            song_artist=params_dict.get('song_artist'),
             output_path=output_path,
             logger=WebLogger(task_id)
         )

@@ -110,6 +110,8 @@ function setupFileUpload(inputId, type, textId) {
 
             if (type === 'audio') {
                 getAudioDuration(data.filename);
+            } else if (type === 'lrc') {
+                fetchLrcMetadata(data.filename);
             }
             if (type === 'cover' && !filePaths.background) {
                 // If no background selected, logic might default to cover, 
@@ -130,6 +132,25 @@ function setupColorSync(colorId, textId) {
     });
     
     // Optional: Text to Color sync could be added here
+}
+
+async function fetchLrcMetadata(filename) {
+    try {
+        const res = await fetch(`${API_BASE}/lrc-metadata?path=${filename}`);
+        const metadata = await res.json();
+        
+        if (metadata.ti) {
+            document.getElementById('song-title').value = metadata.ti;
+            logMessage(`Metadata found: Title = ${metadata.ti}`);
+        }
+        if (metadata.ar) {
+            document.getElementById('song-artist').value = metadata.ar;
+            logMessage(`Metadata found: Artist = ${metadata.ar}`);
+        }
+    } catch (e) {
+        console.error(e);
+        logMessage("Failed to fetch LRC metadata.");
+    }
 }
 
 async function getAudioDuration(filename) {
@@ -181,6 +202,9 @@ function gatherParams() {
         
         ffmpeg_path: getVal('ffmpeg-path'),
         hw_accel: getVal('hw-accel'),
+        
+        song_title: getVal('song-title'),
+        song_artist: getVal('song-artist'),
         
         preview_time: (parseFloat(getVal('preview-slider')) / 100) * audioDuration
     };

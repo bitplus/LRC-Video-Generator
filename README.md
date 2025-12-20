@@ -4,6 +4,8 @@
 
 基于 **FastAPI** 和 **HTML5/CSS3** 构建，提供现代化的 Web 界面，无需安装复杂的 GUI 库，即可在任何支持现代浏览器的设备上使用。
 
+![主界面](https://github.com/bitplus/LRC-Video-Generator/blob/assets/PixPin_2025-12-20_12-21-09.png)
+
 **视频示例**:
 
   https://www.bilibili.com/video/BV1CxqBBzEjo/
